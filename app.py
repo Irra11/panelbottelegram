@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, request, redirect, Response
+from flask import Flask, request, Response
 import plistlib
 import uuid
 import requests
@@ -15,12 +15,12 @@ def download():
     uid = request.args.get("uid")
     if not uid:
         return "Missing Telegram User ID", 400
-    return redirect(f"/api/get-profile?uid={uid}")
+    # Redirect to get-profile to trigger the download
+    return get_profile(uid)
 
-@app.route('/api/get-profile', methods=['GET'])
-def get_profile():
-    uid = request.args.get("uid", "unknown")
-    root_url = request.url_root.replace("http://", "https://")
+def get_profile(uid):
+    # Manually setting the URL to ensure it is always HTTPS and correct for Render
+    root_url = "https://panelbottelegram.onrender.com/"
     enroll_url = f"{root_url}api/enroll?uid={uid}"
 
     profile_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -63,12 +63,12 @@ def get_profile():
 def enroll():
     try:
         uid = request.args.get("uid")
+        # Apple sends the UDID in the request.data (Binary Plist)
         plist_data = plistlib.loads(request.data)
         udid = plist_data.get("UDID", "Unknown")
 
-        if uid:
-            # We send a message with a button back to the user
-            # This allows the main.py to handle the 'click' event
+        if uid and udid != "Unknown":
+            # Send message with button to the bot
             keyboard = {
                 "inline_keyboard": [[
                     {"text": "✅ Click to Confirm UDID", "callback_data": f"set_udid_{udid}"}
@@ -77,17 +77,19 @@ def enroll():
             
             payload = {
                 "chat_id": uid,
-                "text": f"📱 **រកឃើញ UDID របស់អ្នកហើយ!**\n\n🆔 `{udid}`\n\nសូមចុចប៊ូតុងខាងក្រោមដើម្បីបន្ត៖",
+                "text": f"📱 **រកឃើញ UDID របស់អ្នកហើយ!**\n\n🆔 `{udid}`\n\nសូមត្រលប់មក Telegram វិញរួចចុចប៊ូតុងខាងក្រោម៖",
                 "parse_mode": "Markdown",
                 "reply_markup": json.dumps(keyboard)
             }
             
             requests.post(f"https://api.telegram.org/bot{USER_BOT_TOKEN}/sendMessage", data=payload)
 
-        # Redirect the iPhone user back to Telegram automatically
-        return redirect("https://t.me/Irra_EsignBot", code=302) # Change to your bot username
+        # IMPORTANT: Return 200 OK so the iPhone shows "Profile Installed"
+        # DO NOT REDIRECT HERE
+        return Response("Success", status=200)
 
     except Exception as e:
+        print(f"Error: {e}")
         return str(e), 500
 
 @app.route('/')
@@ -95,4 +97,4 @@ def home():
     return "Pella UDID API is Online 🚀"
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000) # Render usually uses port 10000
