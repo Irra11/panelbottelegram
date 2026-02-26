@@ -20,6 +20,7 @@ def download():
     root_url = "https://panelbottelegram.onrender.com/"
     enroll_url = f"{root_url}api/enroll?uid={uid}"
 
+    # Generate the Apple Profile
     profile_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -36,11 +37,11 @@ def download():
         </array>
     </dict>
     <key>PayloadOrganization</key>
-    <string>Pella Esign</string>
+    <string>Irra Esign</string>
     <key>PayloadDisplayName</key>
-    <string>Pella UDID Auto-Installer</string>
+    <string>Irra Esign UDID Auto-Installer</string>
     <key>PayloadIdentifier</key>
-    <string>com.pella.udid.{uuid.uuid4()}</string>
+    <string>com.irra.udid.{uuid.uuid4()}</string>
     <key>PayloadUUID</key>
     <string>{uuid.uuid4()}</string>
     <key>PayloadVersion</key>
@@ -53,56 +54,64 @@ def download():
     return Response(
         profile_xml,
         mimetype="application/x-apple-aspen-config",
-        headers={"Content-Disposition": "attachment; filename=pella.mobileconfig"}
+        headers={"Content-Disposition": "attachment; filename=irra.mobileconfig"}
     )
 
 @app.route('/api/enroll', methods=['POST'])
 def enroll():
     try:
         uid = request.args.get("uid")
+        # Extract UDID from Apple's binary plist data
         plist_data = plistlib.loads(request.data)
         udid = plist_data.get("UDID", "Unknown")
 
         if uid and udid != "Unknown":
-            # Bot sends message with confirm button
+            # Bot sends message to user with the confirmation button
             keyboard = {
                 "inline_keyboard": [[
-                    {"text": "✅ Click to Confirm UDID", "callback_data": f"set_udid_{udid}"}
+                    {"text": "✅ យល់ព្រមប្រើ UDID នេះ", "callback_data": f"set_udid_{udid}"}
                 ]]
             }
             payload = {
                 "chat_id": uid,
-                "text": f"📱 **ទទួលបាន UDID រួចរាល់!**\n\n🆔 `{udid}`\n\nសូមចុចប៊ូតុងខាងក្រោមដើម្បីបន្ត៖",
+                "text": f"📱 **ទទួលបាន UDID រួចរាល់!**\n\n🆔 UDID: `{udid}`\n\nសូមចុចប៊ូតុងខាងក្រោមដើម្បីបន្ត៖",
                 "parse_mode": "Markdown",
                 "reply_markup": json.dumps(keyboard)
             }
             requests.post(f"https://api.telegram.org/bot{USER_BOT_TOKEN}/sendMessage", data=payload)
 
-        # ✅ THE TRICK: Redirect to a 'Success' page with code 301
-        # This tells the iPhone to open this URL after installation
-        return redirect(f"https://panelbottelegram.onrender.com/success", code=301)
+        # ✅ CRITICAL: Use 301 Redirect to the Success Page
+        # This prevents the "Connection Failed" error and opens Safari
+        return redirect("https://panelbottelegram.onrender.com/success", code=301)
 
     except Exception:
         return Response(status=500)
 
 @app.route('/success')
 def success():
-    # This page runs a small JavaScript to force Telegram to open
+    # This page uses JavaScript to force-open the Telegram App
     html = f"""
     <html>
     <head>
-        <title>Redirecting...</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Returning to Telegram...</title>
         <script>
+            // Deep link to open the bot in the Telegram App
             window.location.href = "tg://resolve?domain={BOT_USERNAME}";
+            // Fallback: If it doesn't open in 1 second, show the manual link
             setTimeout(function() {{
                 window.location.href = "https://t.me/{BOT_USERNAME}";
-            }}, 500);
+            }}, 1000);
         </script>
     </head>
-    <body style="text-align:center; font-family:sans-serif; margin-top:50px;">
-        <h2>✅ Installation Complete!</h2>
-        <p>Redirecting you back to Telegram...</p>
-        <a href="tg://resolve?domain={BOT_USERNAME}" style="font-size:20px; color:blue;">Click here if not redirected</a>
+    <body style="text-align:center; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding-top:100px;">
+        <h2 style="color: #333;">✅ UDID ទទួលបានជោគជ័យ!</h2>
+        <p style="color: #666;">កំពុងនាំអ្នកត្រលប់ទៅ Telegram វិញ...</p>
+        <br>
+        <a href="tg://resolve?domain={BOT_USERNAME}" 
+           style="background-color: #0088cc; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+           ចុចទីនេះដើម្បីត្រលប់ទៅ Bot
+        </a>
     </body>
     </html>
     """
@@ -110,7 +119,7 @@ def success():
 
 @app.route('/')
 def home():
-    return "API is Online 🚀"
+    return "Irra Esign API is Live 🚀"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
