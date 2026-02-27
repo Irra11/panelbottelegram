@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # 🔴 CHANGE THIS to the URL where your HTML is hosted
-FRONTEND_URL = "https://panelbottelegram.vercel.app/"
+FRONTEND_URL = "https://irra-udid.vercel.app/"
 
 @app.route('/api/get-profile')
 def get_profile():
